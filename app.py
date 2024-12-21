@@ -14,24 +14,31 @@ def init_db():
     c = conn.cursor()
     c.execute('''
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            email TEXT NOT NULL,
-            phone TEXT NOT NULL,
-            password TEXT NOT NULL
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            User_name TEXT NOT NULL,
+            Email TEXT NOT NULL,
+            Phone TEXT NOT NULL,
+            Password TEXT NOT NULL
         )
     ''')
     c.execute('''
         CREATE TABLE IF NOT EXISTS transactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            amount REAL NOT NULL,
-            category TEXT NOT NULL,
-            date TEXT NOT NULL,
-            description TEXT,
-            payment_method TEXT NOT NULL,
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            User_id INTEGER NOT NULL,
+            Amount REAL NOT NULL,
+            Category TEXT NOT NULL,
+            Date TEXT NOT NULL,
+            Description TEXT,
+            Finance_stream TEXT NOT NULL,
+            Is_fix BOOL, 
+            Is_expense BOOL,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
+    ''')
+
+    #Insert Debug Acount info
+    c.execute('''
+        INSERT INTO users (User_name, Email, Phone, Password) VALUES ("e", "e@e.e", 0, "e")
     ''')
     conn.commit()
     conn.close()
@@ -47,7 +54,7 @@ def index():
         # Fetch transactions from the database
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
-        c.execute("SELECT * FROM transactions WHERE user_id = ?", (user_id,))
+        c.execute("SELECT * FROM transactions WHERE User_id = ?", (user_id,))
         transactions = c.fetchall()
         
         # Compute the sum of transaction amounts for each payment method
@@ -68,7 +75,7 @@ def login():
         password = request.form['password']
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
-        c.execute("SELECT id, username FROM users WHERE username = ? AND password = ?", (username, password))
+        c.execute("SELECT Id, User_name FROM users WHERE User_name = ? AND Password = ?", (username, password))
         user = c.fetchone()
         conn.close()
         if user:
@@ -94,12 +101,12 @@ def register():
         password = request.form['password']
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
-        c.execute("SELECT * FROM users WHERE username = ?", (username,))
+        c.execute("SELECT * FROM users WHERE User_name = ?", (username,))
         existing_user = c.fetchone()
         if existing_user:
             flash('Username already exists. Please choose a different one.', 'error')
         else:
-            c.execute("INSERT INTO users (username, email, phone, password) VALUES (?, ?, ?, ?)",
+            c.execute("INSERT INTO users (User_name, Email, Phone, Password) VALUES (?, ?, ?, ?)",
                       (username, email, phone, password))
             conn.commit()
             conn.close()
@@ -114,7 +121,7 @@ def transactions():
         username = session['username']
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
-        c.execute("SELECT * FROM transactions WHERE user_id = ?", (user_id,))
+        c.execute("SELECT * FROM transactions WHERE User_id = ?", (user_id,))
         transactions = c.fetchall()
         conn.close()
 
@@ -136,7 +143,7 @@ def add_transaction():
 
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
-        c.execute("INSERT INTO transactions (user_id, date, category, amount, payment_method, description) VALUES (?, ?, ?, ?, ?, ?)",
+        c.execute("INSERT INTO transactions (User_id, Date, Category, Amount, Finance_stream, Description) VALUES (?, ?, ?, ?, ?, ?)",
                   (user_id, date, category, amount, payment_method, description))
         conn.commit()
         conn.close()
@@ -150,7 +157,7 @@ def delete_transaction(transaction_id):
     if 'username' in session:
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
-        c.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))
+        c.execute("DELETE FROM transactions WHERE Id = ?", (transaction_id,))
         conn.commit()
         conn.close()
         flash('Transaction deleted successfully.', 'success')
@@ -166,7 +173,7 @@ def daily_spending_data():
         # Fetch daily spending data from the database
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
-        c.execute("SELECT date, SUM(amount) FROM transactions WHERE user_id = ? GROUP BY date", (user_id,))
+        c.execute("SELECT Date, SUM(Amount) FROM transactions WHERE User_id = ? GROUP BY Date", (user_id,))
         data = c.fetchall()
         conn.close()
 
@@ -186,7 +193,7 @@ def monthly_spending_data():
         # Fetch monthly spending data from the database
         conn = sqlite3.connect(DATABASE)
         c = conn.cursor()
-        c.execute("SELECT strftime('%Y-%m', date) AS month, SUM(amount) FROM transactions WHERE user_id = ? GROUP BY month", (user_id,))
+        c.execute("SELECT strftime('%Y-%m', date) AS month, SUM(Amount) FROM transactions WHERE User_id = ? GROUP BY month", (user_id,))
         data = c.fetchall()
         conn.close()
 
@@ -212,17 +219,17 @@ def statistics():
         c = conn.cursor()
 
         # Fetch total expenses for the logged-in user
-        c.execute("SELECT SUM(amount) FROM transactions WHERE user_id = ?", (user_id,))
+        c.execute("SELECT SUM(amount) FROM transactions WHERE User_id = ?", (user_id,))
         total_expenses_result = c.fetchone()
         total_expenses = total_expenses_result[0] if total_expenses_result else 0
 
         # Fetch expense breakdown by category for the logged-in user
-        c.execute("SELECT category, SUM(amount) FROM transactions WHERE user_id = ? GROUP BY category", (user_id,))
+        c.execute("SELECT Category, SUM(Amount) FROM transactions WHERE User_id = ? GROUP BY Category", (user_id,))
         expense_by_category_result = c.fetchall()
         expense_by_category = dict(expense_by_category_result) if expense_by_category_result else {}
 
         # Fetch top spending categories for the logged-in user
-        c.execute("SELECT category, SUM(amount) FROM transactions WHERE user_id = ? GROUP BY category ORDER BY SUM(amount) DESC LIMIT 5", (user_id,))
+        c.execute("SELECT Category, SUM(Amount) FROM transactions WHERE User_id = ? GROUP BY Category ORDER BY SUM(Amount) DESC LIMIT 5", (user_id,))
         top_spending_categories_result = c.fetchall()
         top_spending_categories = dict(top_spending_categories_result) if top_spending_categories_result else {}
 
